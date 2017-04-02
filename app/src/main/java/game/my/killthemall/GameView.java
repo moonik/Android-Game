@@ -1,89 +1,92 @@
 package game.my.killthemall;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.content.Context;
-
 import android.graphics.Bitmap;
-
 import android.graphics.BitmapFactory;
-
 import android.graphics.Canvas;
-
 import android.graphics.Color;
-
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
+import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
-import android.view.View;
 
-/**
- * Created by Роман on 29.03.2017.
- */
 public class GameView extends SurfaceView {
-    private final Bitmap bmp;
-    private final SurfaceHolder holder;
+    private Bitmap bmp;
+    private SurfaceHolder holder;
     private GameLoopThread gameLoopThread;
-    private int x = 0;
-    private int y = 0;
-    private int xSpeed = 1;
-    private int ySpeed = 1;
+    private List<Sprite> sprites = new ArrayList<Sprite>();
+    private long lastClick;
 
     public GameView(Context context) {
         super(context);
         gameLoopThread = new GameLoopThread(this);
         holder = getHolder();
-        holder.addCallback(new SurfaceHolder.Callback() {
+        holder.addCallback(new Callback() {
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+            }
 
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
+                createSprites();
                 gameLoopThread.setRunning(true);
                 gameLoopThread.start();
             }
 
             @Override
-            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-
-            }
-
-            @Override
-            public void surfaceDestroyed(SurfaceHolder holder) {
-                boolean retry = true;
-                gameLoopThread.setRunning(false);
-
-                while (retry) {
-
-                    try {
-                        gameLoopThread.join();
-                        retry = false;
-                    } catch (InterruptedException e) {
-
-                    }
-                }
+            public void surfaceChanged(SurfaceHolder holder, int format,
+                                       int width, int height) {
             }
         });
 
-        bmp = BitmapFactory.decodeResource(getResources(), R.drawable.icon);
+    }
+
+    private void createSprites() {
+        sprites.add(createSprite(R.drawable.bad1));
+        sprites.add(createSprite(R.drawable.bad2));
+        sprites.add(createSprite(R.drawable.bad3));
+        sprites.add(createSprite(R.drawable.bad4));
+        sprites.add(createSprite(R.drawable.bad5));
+        sprites.add(createSprite(R.drawable.bad6));
+        sprites.add(createSprite(R.drawable.good1));
+        sprites.add(createSprite(R.drawable.good2));
+        sprites.add(createSprite(R.drawable.good3));
+        sprites.add(createSprite(R.drawable.good4));
+        sprites.add(createSprite(R.drawable.good5));
+        sprites.add(createSprite(R.drawable.good6));
+    }
+
+    private Sprite createSprite(int resouce) {
+        Bitmap bmp = BitmapFactory.decodeResource(getResources(), resouce);
+        return new Sprite(this, bmp);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        if (x == getWidth() - bmp.getWidth()) {
-            xSpeed = 0;
-            ySpeed = 1;
-        }
-        if (y != getHeight() - bmp.getHeight() && x == 0) {
-            xSpeed = 1;
-            ySpeed = 0;
-        }
-        if(y == getHeight() - bmp.getHeight()){
-            ySpeed = 0;
-            xSpeed = -1;
-        }
-        if(y > 0 && x == 0){
-            ySpeed = -1;
-            xSpeed = 0;
-        }
-        x += xSpeed;
-        y += ySpeed;
         canvas.drawColor(Color.BLACK);
-        canvas.drawBitmap(bmp, x, y, null);
+        for (Sprite sprite : sprites) {
+            sprite.onDraw(canvas);
+        }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (System.currentTimeMillis() - lastClick > 500) {
+            lastClick = System.currentTimeMillis();
+            synchronized (getHolder()) {
+                for (int i = sprites.size() - 1; i >= 0; i--) {
+                    Sprite sprite = sprites.get(i);
+                    if (sprite.isCollition(event.getX(), event.getY())) {
+                        sprites.remove(sprite);
+                        break;
+                    }
+                }
+            }
+        }
+        return true;
     }
 }
