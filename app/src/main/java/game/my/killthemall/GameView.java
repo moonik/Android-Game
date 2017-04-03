@@ -2,7 +2,6 @@ package game.my.killthemall;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -10,24 +9,30 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
-import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
 
 public class GameView extends SurfaceView {
-    private Bitmap bmp;
-    private SurfaceHolder holder;
     private GameLoopThread gameLoopThread;
     private List<Sprite> sprites = new ArrayList<Sprite>();
+    private List<TempSprite> temps = new ArrayList<TempSprite>();
     private long lastClick;
+    private Bitmap bmpBlood;
 
     public GameView(Context context) {
         super(context);
         gameLoopThread = new GameLoopThread(this);
-        holder = getHolder();
-        holder.addCallback(new Callback() {
+        getHolder().addCallback(new SurfaceHolder.Callback() {
 
             @Override
             public void surfaceDestroyed(SurfaceHolder holder) {
+                boolean retry = true;
+                gameLoopThread.setRunning(false);
+                while (retry) {
+                    try {
+                        gameLoopThread.join();
+                        retry = false;
+                    } catch (InterruptedException e) {}
+                }
             }
 
             @Override
@@ -42,7 +47,7 @@ public class GameView extends SurfaceView {
                                        int width, int height) {
             }
         });
-
+        bmpBlood = BitmapFactory.decodeResource(getResources(), R.drawable.blood1);
     }
 
     private void createSprites() {
@@ -68,6 +73,9 @@ public class GameView extends SurfaceView {
     @Override
     protected void onDraw(Canvas canvas) {
         canvas.drawColor(Color.BLACK);
+        for (int i = temps.size() - 1; i >= 0; i--) {
+            temps.get(i).onDraw(canvas);
+        }
         for (Sprite sprite : sprites) {
             sprite.onDraw(canvas);
         }
@@ -75,13 +83,16 @@ public class GameView extends SurfaceView {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (System.currentTimeMillis() - lastClick > 500) {
+        if (System.currentTimeMillis() - lastClick > 300) {
             lastClick = System.currentTimeMillis();
+            float x = event.getX();
+            float y = event.getY();
             synchronized (getHolder()) {
                 for (int i = sprites.size() - 1; i >= 0; i--) {
                     Sprite sprite = sprites.get(i);
-                    if (sprite.isCollition(event.getX(), event.getY())) {
+                    if (sprite.isCollition(x, y)) {
                         sprites.remove(sprite);
+                        temps.add(new TempSprite(temps, this, x, y, bmpBlood));
                         break;
                     }
                 }
